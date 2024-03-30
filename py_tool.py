@@ -8,8 +8,9 @@ from zipfile import ZipFile
 import rarfile
 import csv
 import collections
-import subprocess
-from PyPDF2 import PdfFileReader
+import subprocess   
+
+from pypdf import PdfReader 
 
 """
     Label	A widget used to display text on the screen
@@ -18,21 +19,6 @@ from PyPDF2 import PdfFileReader
     Text	A text entry widget that allows multiline text entry
     Frame	A rectangular region used to group related widgets or provide padding between widgets
 """
-
-"""
-    TODO
-    STEP 1: DONE
-        - open interface asking for path to files, also having a button triggering path finding on OS
-        - lists files and folders in current path
-    STEP 2: DONE
-        - allows to read .zip content, other files and zip files.
-        - read over texts and return used words
-    STEP 3:
-        - visualize .jpeg and .png files
-    .csv, .zip, file reader + search keys words + non-linear graph
-"""
-
-
 
 def test():
     def frame_label_button(master_frm):
@@ -107,19 +93,26 @@ def tool():
             else:
                 display_file_content(file_path)
     
+    # if in folder, display content
     def display_folder_contents(folder_path):
         file_list_right.delete(0, END)
         for item in os.listdir(folder_path):
             file_list_right.insert(END, item)
     
+    # pdf reader
     def extract_text_from_pdf(pdf_path):
-        text = ''
+        text: list[str] = []
         with open(pdf_path, 'rb') as pdf_file:
-            pdf_reader = PdfFileReader(pdf_file)
-            for page_num in range(pdf_reader.numPages):
-                text += pdf_reader.getPage(page_num).extractText()
+            pdf_reader = PdfReader(pdf_file)
+            all_pages = len(pdf_reader.pages)
+            print(f"\nPages: {all_pages}\n")
+            
+            for page_num in range(all_pages):
+                page = pdf_reader.pages[page_num]
+                text += page.extract_text().split()
         return text
 
+    # if not a folder, display its content
     def display_file_content(file_path):
         if file_path.endswith(('.zip', '.rar')):
             if file_path.endswith('.zip'):
@@ -135,7 +128,9 @@ def tool():
                     for file_info in rar_ref.infolist():
                         file_list_right.insert(END, file_info.filename)
         else:
+            # not in zip file
             _, file_extension = os.path.splitext(file_path)
+            # document  file
             if file_extension in ('.txt', '.doc'):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as file:
@@ -148,21 +143,23 @@ def tool():
                             file_list_right.insert(END, f"{word}: {count}")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
+            # pdf files
             elif file_extension in ('.pdf'):
                 try:
                     # with open(file_path, 'rb') as file:
-                    #     words = file.read().split()
-                    #     word_counts = collections.Counter(words)
-                    #     most_common_words = word_counts.most_common(50)
-                    #     file_list_right.delete(0, END)
-                    #     file_list_right.insert(END, "Most Used Words:")
-                    file_list_right.delete(0, END)
-                    text = extract_text_from_pdf(file_path)
-                    file_list_right.insert(END, text)
-                    for word, count in most_common_words:
-                        file_list_right.insert(END, f"{word}: {count}")
+                        # words = file.read().split()
+                        # words = PDFDocument(file)
+                        file_list_right.delete(0, END)
+                        file_list_right.insert(END, "Most Used Words:")
+                        # To pdf function
+                        text = extract_text_from_pdf(file_path)
+                        word_counts = collections.Counter(text)
+                        most_common_words = word_counts.most_common(50)
+                        for word, count in most_common_words:
+                            file_list_right.insert(END, f"{word}: {count}")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
+            # csv files
             elif file_extension in ('.csv', '.tsv'):
                 try:
                     with open(file_path, 'r', newline='', encoding='utf-8') as file:
@@ -174,6 +171,7 @@ def tool():
                             file_list_right.insert(END, key)
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
+            # code related files
             elif file_extension in ('.py', '.js', '.c'):
                 try:
                     preview = subprocess.check_output(['head', '-n', '20', file_path])
@@ -222,12 +220,6 @@ def tool():
 
     file_list_right = Listbox(right_frame, width=60)
     file_list_right.pack(fill=BOTH, expand=True)
-    
-    # Expand columns and rows
-    # root.columnconfigure(0, weight=1)
-    # root.rowconfigure(0, weight=1)
-    # left_frame.columnconfigure(1, weight=1)
-    # left_frame.rowconfigure(2, weight=1)
     
     root.columnconfigure(0, weight=1)
     root.columnconfigure(1, weight=1)
